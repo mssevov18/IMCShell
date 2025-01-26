@@ -1,0 +1,16 @@
+#+title: Imcsh
+Deadline till 02.02.2025
+Submissions as a zip
+
+* Majors
+** DONE Input/Output using stdin/out
+** DONE Prompt user@host> with accurate names
+** TODO exec implementation
+** TODO & modifier for background execution
+** TODO globalusage implementation
+** TODO > implementation
+** TODO quit implementation
+
+* Minors
+** DONE Makefile
+** TODO Documentation

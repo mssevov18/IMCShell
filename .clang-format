@@ -1,0 +1,12 @@
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 80
+BreakBeforeBraces: Allman
+AlwaysBreakAfterDefinitionReturnType: All
+AllowShortFunctionsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Never
+DerivePointerAlignment: false
+PointerAlignment: Left
+BraceWrapping:
+  AfterControlStatement: false
+AllowShortIfStatementsOnASingleLine: true
