@@ -4,8 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 
-char* major = "0";
-char* minor = "1";
+char* major = "3";
+char* minor = "0";
 char* author = "mssevov, bbkanev";
 
 char*
@@ -64,7 +64,6 @@ main(int argc, char* argv[])
 
         // Remove newline character if present
         input[strcspn(input, "\n")] = '\0';
-
         command = strtok(input, " ");
 
         if (command == NULL) continue;

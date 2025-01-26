@@ -9,7 +9,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 
 # Output binary
-TARGET = imcshell
+TARGET = imcsh
 
 # Source files
 SRC = main.c

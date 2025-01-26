@@ -1,16 +1,63 @@
 #+title: Imcsh
+
+* Organisational
 Deadline till 02.02.2025
 Submissions as a zip
-
-* Majors
-** DONE Input/Output using stdin/out
-** DONE Prompt user@host> with accurate names
-** TODO exec implementation
-** TODO & modifier for background execution
-** TODO globalusage implementation
-** TODO > implementation
-** TODO quit implementation
-
-* Minors
 ** DONE Makefile
+** DONE .clang-format or .editorconfig
 ** TODO Documentation
+   - Usage examples
+   - Implementation details
+   - Project design decisions
+
+* Majors [3/6]
+** DONE 1. [2/2]
+*** DONE Input/Output using stdin/out
+*** DONE Input tokenization
+
+** DONE 2. [2/2]
+*** DONE globalusage implementation
+*** DONE quit implementation
+
+** DONE 3. [2/2]
+*** DONE Prompt user@host> with accurate names
+*** DONE Accurate path
+
+** TODO 4. [0/1]
+*** TODO exec implementation
+
+** TODO 5. [0/2]
+*** TODO & modifier for background execution
+*** TODO Proper forking and process management
+
+** TODO 6. [0/2]
+*** TODO > (output redirection)
+*** TODO >> (append redirection) [optional or separate subtask]
+
+* EXTRA
+
+** EXTRA TODO Environment variable handling [0/2]
+*** TODO Expansion of variables (e.g., $HOME, $PATH)
+*** TODO Setting/unsetting environment variables (export, unset, etc.)
+
+** EXTRA TODO Built-in commands [0/2]
+*** TODO cd
+*** TODO history (or other built-ins like alias, type)
+
+** EXTRA TODO Advanced job control [0/3]
+*** TODO Suspend/Resume jobs (Ctrl+Z, bg, fg)
+*** TODO Signal handling (Ctrl+C, kill)
+*** TODO Display active jobs (jobs command)
+
+** EXTRA TODO Additional redirections [0/2]
+*** TODO 2> (stderr redirection)
+*** TODO < (input redirection from file)
+
+** EXTRA TODO User-friendly features [0/3]
+*** TODO Command-line history navigation
+*** TODO Optional tab-completion
+*** TODO Syntax highlighting or prompt customization (if time permits)
+
+** EXTRA TODO Extended Scripting Mode [0/2]
+*** TODO Ability to run a file of commands non-interactively
+*** TODO Possibly add “source” or “.” built-in to read commands from a file
