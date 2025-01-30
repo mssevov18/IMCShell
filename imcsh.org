@@ -10,7 +10,7 @@ Submissions as a zip
    - Implementation details
    - Project design decisions
 
-* Majors [3/6]
+* Majors [5/6]
 ** DONE 1. [2/2]
 *** DONE Input/Output using stdin/out
 *** DONE Input tokenization
@@ -23,13 +23,13 @@ Submissions as a zip
 *** DONE Prompt user@host> with accurate names
 *** DONE Accurate path
 
-** TODO 4. [1/1]
+** DONE 4. [1/1]
 *** DONE exec implementation
 exec <program> <arg1> <arg2> ... <argN>
 
-** TODO 5. [0/2]
-*** TODO & modifier for background execution
-*** TODO Proper forking and process management
+** DONE 5. [2/2]
+*** DONE & modifier for background execution
+*** DONE Proper forking and process management
 
 ** TODO 6. [0/2]
 *** TODO > (output redirection)
@@ -37,28 +37,33 @@ exec <program> <arg1> <arg2> ... <argN>
 
 * EXTRA
 
-** EXTRA TODO Environment variable handling [0/2]
+
+** TODO EXTRA Environment variable handling [0/2]
 *** TODO Expansion of variables (e.g., $HOME, $PATH)
+*** TODO Expansion of varable constants (~, /)
 *** TODO Setting/unsetting environment variables (export, unset, etc.)
 
-** EXTRA TODO Built-in commands [0/2]
-*** TODO cd
-*** TODO history (or other built-ins like alias, type)
+** DONE EXTRA Allow any external commands
 
-** EXTRA TODO Advanced job control [0/3]
+** TODO EXTRA history
+*** TODO EXTRA Arrow keys to access history
+
+** TODO EXTRA alias
+
+** TODO EXTRA Advanced job control [1/3]
 *** TODO Suspend/Resume jobs (Ctrl+Z, bg, fg)
 *** TODO Signal handling (Ctrl+C, kill)
-*** TODO Display active jobs (jobs command)
+*** DONE Display active jobs (jobs command)
 
-** EXTRA TODO Additional redirections [0/2]
+** TODO EXTRA Additional redirections [0/2]
 *** TODO 2> (stderr redirection)
 *** TODO < (input redirection from file)
 
-** EXTRA TODO User-friendly features [0/3]
+** TODO EXTRA User-friendly features [0/3]
 *** TODO Command-line history navigation
 *** TODO Optional tab-completion
 *** TODO Syntax highlighting or prompt customization (if time permits)
 
-** EXTRA TODO Extended Scripting Mode [0/2]
+** TODO EXTRA Extended Scripting Mode [0/2]
 *** TODO Ability to run a file of commands non-interactively
 *** TODO Possibly add “source” or “.” built-in to read commands from a file

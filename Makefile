@@ -22,18 +22,20 @@ SRC = $(SRC-PATH)$(SOURCE-FILES)
 all: $(TARGET)
 
 # Rule to build the executable
-$(TARGET): $(SRC)
+$(TARGET): $(SRC) | $(BLD-PATH)
 	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
+
+# Ensure build directory exists
+$(BLD-PATH):
+	mkdir -p $(BLD-PATH)
 
 # Debug: Build and run the program with debugging
 debug: $(TARGET)
 	./$(TARGET)
 
-# Clean: Remove the executable
+# Clean: Remove the executable and build directory
 clean:
-	rm -f $(TARGET
+	rm -rf $(BLD-PATH)
 
 # Phony targets
 .PHONY: all debug clean
-
-# end

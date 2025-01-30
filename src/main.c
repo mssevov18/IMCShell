@@ -7,14 +7,24 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-char* major = "4";
+#define MAX_BG_PROCESSES 128
+
+typedef struct
+{
+    pid_t pid;
+    char command[256];
+} BackgroundProcess;
+
+BackgroundProcess bg_processes[MAX_BG_PROCESSES];
+int bg_process_count = 0;
+
+char* major = "5";
 char* minor = "0";
 char* author = "mssevov, bbkanev";
 
 char*
 get_cwd()
 {
-    // Dynamically allocate memory
     char* cwd = (char*)malloc(PATH_MAX * sizeof(char));
     if (cwd == NULL)
     {
@@ -24,15 +34,15 @@ get_cwd()
     if (getcwd(cwd, PATH_MAX) == NULL)
     {
         perror("getcwd() error");
-        free(cwd);  // Free memory in case of an error
+        free(cwd);
         return NULL;
     }
-    return cwd;  // Return dynamically allocated memory
+    return cwd;
 }
 
-// Helper function to execute a command with arguments
 void
-execute_command(char* command, char** args, bool show_finished)
+execute_command(char* command, char** args, bool wait_for_completion,
+                char* full_command, bool print_finish)
 {
     pid_t pid = fork();
 
@@ -41,20 +51,60 @@ execute_command(char* command, char** args, bool show_finished)
         perror("Fork failed");
         return;
     }
-    else if (pid == 0)  // Child process
-    {
+    else if (pid == 0)
+    {  // Child process
         execvp(command, args);
 
         // If execvp fails, print an error and exit child process
         perror("exec failed");
+        perror(full_command);
         exit(1);
     }
-    else  // Parent process
+    else
+    {  // Parent process
+        if (wait_for_completion)
+        {
+            int status;
+            waitpid(pid, &status, 0);  // Wait for child process to finish
+            if (print_finish)
+                printf("\nChild process with PID %d finished.\n", pid);
+        }
+        else
+        {  // Background process
+            if (bg_process_count < MAX_BG_PROCESSES)
+            {
+                bg_processes[bg_process_count].pid = pid;
+                strncpy(bg_processes[bg_process_count].command, full_command,
+                        256);
+                bg_process_count++;
+                printf("Started background process with PID %d: %s\n", pid,
+                       full_command);
+            }
+            else
+                printf(
+                    "Maximum background processes reached. Cannot start a new "
+                    "background process.\n");
+        }
+    }
+}
+
+void
+clean_up_background_processes()
+{
+    for (int i = 0; i < bg_process_count; i++)
     {
         int status;
-        waitpid(pid, &status, 0);  // Wait for child process to finish
-        if (show_finished)
-            printf("\nChild process with PID %d finished.\n", pid);
+        pid_t result = waitpid(bg_processes[i].pid, &status, WNOHANG);
+        if (result > 0)
+        {  // Process finished
+            printf("Background process with PID %d (%s) finished.\n",
+                   bg_processes[i].pid, bg_processes[i].command);
+            // Remove the process from the list
+            for (int j = i; j < bg_process_count - 1; j++)
+                bg_processes[j] = bg_processes[j + 1];
+            bg_process_count--;
+            i--;  // Adjust index due to shift
+        }
     }
 }
 
@@ -66,15 +116,14 @@ main(int argc, char* argv[])
     return 1;
 #endif
 
-    char* input =
-        (char*)malloc(256 * sizeof(char));  // Dynamically allocate memory
+    char* input = (char*)malloc(256 * sizeof(char));
     if (input == NULL)
     {
         fprintf(stderr, "Memory allocation failed\n");
         return 1;
     }
 
-    int status_code = 1;  // 0: exit, 1: normal running
+    int status_code = 1;
     char* command;
     char* cwd;
     char* user = getenv("USER");
@@ -85,87 +134,136 @@ main(int argc, char* argv[])
 
     while (status_code == 1)
     {
+        clean_up_background_processes();  // Clean up completed background
+                                          // processes
+
         cwd = get_cwd();
         if (cwd != NULL)
         {
             printf("%s@%s~%s> ", user, hostname, cwd);
-            free(cwd);  // Free memory allocated by get_cwd
+            free(cwd);
             cwd = NULL;
         }
         else
-            printf("%s@%s> ", user, hostname);  // Handle case where cwd is NULL
+            printf("%s@%s> ", user, hostname);
 
-        if (fgets(input, 256, stdin) == NULL)  // Safely read input
-            continue;
+        if (fgets(input, 256, stdin) == NULL) continue;
 
-        // Remove newline character if present
         input[strcspn(input, "\n")] = '\0';
         command = strtok(input, " ");
 
-        // Ignore empty inputs
         if (command == NULL) continue;
 
-        // Stop all foreground and background processes;
         if (!strcmp(command, "exit"))
         {
-            // TODO: Should check for active sub-processes
-            // If there are any, ask:
-            // Wait for background processes? Y/n
-            status_code = 0;
-            break;
-        }
-        // Display all implemented commands
-        // TODO add help <command> that would display command specific help
-        else if (!strcmp(command, "help"))
-            printf(
-                "This is help "
-                "command\nCommands:\n\texit\n\thelp\n\tglobalusage\n\n");
-        // Current version, authors
-        else if (!strcmp(command, "globalusage"))
-            printf("IMCSH Version %s.%s created by %s\n", major, minor, author);
-        // Exec implementation
-        else if (!strcmp(command, "exec"))
-        {
-            char*
-                args[64];  // Array to store arguments, max 63 + NULL terminator
-            int i = 0;
+            clean_up_background_processes();  // Check for completed processes
 
-            // Get the first argument (the command to execute)
-            args[i++] = strtok(NULL, " ");
+            if (bg_process_count > 0)
+            {  // If there are active background processes
+                printf("There are %d background processes running.\n",
+                       bg_process_count);
+                char choice;
+                printf("Wait for background processes? (y/n): ");
+                scanf(" %c", &choice);  // Get user input
 
-            if (args[0] == NULL)
-            {
-                printf("Usage: exec <command> [arguments]\n");
-                continue;
+                if (choice == 'y' || choice == 'Y')
+                {
+                    // Wait for all background processes to finish
+                    for (int i = 0; i < bg_process_count; i++)
+                    {
+                        int status;
+                        waitpid(bg_processes[i].pid, &status,
+                                0);  // Wait for process to finish
+                        printf(
+                            "Background process with PID %d (%s) finished.\n",
+                            bg_processes[i].pid, bg_processes[i].command);
+                    }
+                    bg_process_count = 0;  // All processes are finished
+                }
+                else if (choice == 'n' || choice == 'N')
+                {
+                    // Terminate all background processes
+                    for (int i = 0; i < bg_process_count; i++)
+                    {
+                        kill(bg_processes[i].pid,
+                             SIGKILL);  // Forcefully terminate process
+                        printf(
+                            "Terminated background process with PID %d (%s).\n",
+                            bg_processes[i].pid, bg_processes[i].command);
+                    }
+                    bg_process_count = 0;  // All processes are terminated
+                }
+                else
+                    printf(
+                        "Invalid choice. Exiting without terminating "
+                        "background processes.\n");
             }
 
-            // Get the rest of the arguments
+            status_code = 0;  // Exit the shell
+            break;
+        }
+        else if (!strcmp(command, "help"))
+            printf("Commands:\n\texit\n\thelp\n\tglobalusage\n\tjobs\n\n");
+        else if (!strcmp(command, "globalusage"))
+            printf("IMCSH Version %s.%s created by %s\n", major, minor, author);
+        else if (!strcmp(command, "jobs"))
+        {
+            // List background processes
+            for (int i = 0; i < bg_process_count; i++)
+            {
+                printf("[%d] PID: %d Command: %s\n", i + 1, bg_processes[i].pid,
+                       bg_processes[i].command);
+            }
+        }
+        else if (!strcmp(command, "cd"))
+        {
+            char* path = strtok(NULL, " ");  // Get the target directory
+
+            // If no path is provided, default to the user's home directory
+            if (path == NULL)
+            {
+                path = getenv("HOME");
+                if (path == NULL)
+                {
+                    fprintf(stderr, "cd: HOME not set\n");
+                    continue;
+                }
+            }
+
+            // Change directory
+            if (chdir(path) != 0) perror("cd");
+        }
+
+        else
+        {  // General command execution, including `exec`
+            char* args[64];
+            int i = 0;
+
+            args[i++] = command;
             char* token = strtok(NULL, " ");
             while (token != NULL && i < 63)
             {
                 args[i++] = token;
                 token = strtok(NULL, " ");
             }
-            args[i] = NULL;  // Null-terminate the argument list
+            args[i] = NULL;
 
-            // Call the helper function
-            execute_command(args[0], args, true);
-        }
-        // Debug, for now
-        else
-        {
-            printf("%s ", command);
-            char* token;
-            token = strtok(NULL, " ");  // First token
-            while (token != NULL)
+            bool run_in_background = false;
+
+            // Check if the last argument is "&"
+            if (i > 1 && strcmp(args[i - 1], "&") == 0)
             {
-                printf("%s ", token);  // Process the token (e.g., print it)
-                token = strtok(NULL, " ");  // Get the next token
+                run_in_background = true;
+                args[i - 1] = NULL;  // Remove "&" from arguments
             }
-            printf("\n");
+
+            bool print_pid = strcmp(args[0], "exec") == 0;
+
+            execute_command(command, args, !run_in_background, input,
+                            print_pid);
         }
     }
 
-    free(input);  // Free dynamically allocated memory
+    free(input);
     return 0;
 }
