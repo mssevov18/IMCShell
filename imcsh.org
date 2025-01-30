@@ -23,8 +23,9 @@ Submissions as a zip
 *** DONE Prompt user@host> with accurate names
 *** DONE Accurate path
 
-** TODO 4. [0/1]
-*** TODO exec implementation
+** TODO 4. [1/1]
+*** DONE exec implementation
+exec <program> <arg1> <arg2> ... <argN>
 
 ** TODO 5. [0/2]
 *** TODO & modifier for background execution

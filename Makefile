@@ -9,10 +9,14 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g
 
 # Output binary
-TARGET = imcsh
+BLD-PATH = build/
+BIN = imcsh
+TARGET = $(BLD-PATH)$(BIN)
 
 # Source files
-SRC = main.c
+SRC-PATH = src/
+SOURCE-FILES = main.c
+SRC = $(SRC-PATH)$(SOURCE-FILES)
 
 # Default target: build the executable
 all: $(TARGET)
@@ -24,11 +28,10 @@ $(TARGET): $(SRC)
 # Debug: Build and run the program with debugging
 debug: $(TARGET)
 	./$(TARGET)
-	clear
 
 # Clean: Remove the executable
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET
 
 # Phony targets
 .PHONY: all debug clean
