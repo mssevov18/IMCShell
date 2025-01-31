@@ -10,7 +10,7 @@ Submissions as a zip
    - Implementation details
    - Project design decisions
 
-* Majors [5/6]
+* Majors [6/6]
 ** DONE 1. [2/2]
 *** DONE Input/Output using stdin/out
 *** DONE Input tokenization
@@ -31,9 +31,9 @@ exec <program> <arg1> <arg2> ... <argN>
 *** DONE & modifier for background execution
 *** DONE Proper forking and process management
 
-** TODO 6. [0/2]
-*** TODO > (output redirection)
-*** TODO >> (append redirection) [optional or separate subtask]
+** DONE 6. [2/2]
+*** DONE > (output redirection)
+*** DONE >> (append redirection) [optional or separate subtask]
 
 * EXTRA
 
@@ -67,3 +67,6 @@ exec <program> <arg1> <arg2> ... <argN>
 ** TODO EXTRA Extended Scripting Mode [0/2]
 *** TODO Ability to run a file of commands non-interactively
 *** TODO Possibly add “source” or “.” built-in to read commands from a file
+
+* Testing
+** [?]

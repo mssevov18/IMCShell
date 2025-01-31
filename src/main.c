@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,9 +19,12 @@ typedef struct
 BackgroundProcess bg_processes[MAX_BG_PROCESSES];
 int bg_process_count = 0;
 
-char* major = "5";
+char* major = "6";
 char* minor = "0";
 char* author = "mssevov, bbkanev";
+
+/* char** commands = ["help", "globalusage", "exec", "jobs", "exit/quit"]; */
+/* size_t ui_commands */
 
 char*
 get_cwd()
@@ -52,7 +56,43 @@ execute_command(char* command, char** args, bool wait_for_completion,
         return;
     }
     else if (pid == 0)
-    {  // Child process
+    {                 // Child process
+        int fd = -1;  // File descriptor for redirection
+        for (int i = 0; args[i] != NULL; i++)
+        {
+            if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0)
+            {
+                bool append = strcmp(args[i], ">>") == 0;
+
+                // Ensure the filename is specified
+                if (args[i + 1] == NULL)
+                {
+                    fprintf(stderr,
+                            "Syntax error: expected filename after %s\n",
+                            args[i]);
+                    exit(1);
+                }
+
+                // Open the file for redirection
+                fd = open(args[i + 1],
+                          append ? O_WRONLY | O_CREAT | O_APPEND
+                                 : O_WRONLY | O_CREAT | O_TRUNC,
+                          0644);
+                if (fd < 0)
+                {
+                    perror("Failed to open file for redirection");
+                    exit(1);
+                }
+
+                // Redirect stdout to the file
+                dup2(fd, STDOUT_FILENO);
+                close(fd);
+
+                // Remove redirection tokens from arguments
+                args[i] = NULL;
+                break;
+            }
+        }
         execvp(command, args);
 
         // If execvp fails, print an error and exit child process
@@ -116,6 +156,7 @@ main(int argc, char* argv[])
     return 1;
 #endif
 
+    // Fixed total len of a single line (256 characters)
     char* input = (char*)malloc(256 * sizeof(char));
     if (input == NULL)
     {
@@ -154,7 +195,7 @@ main(int argc, char* argv[])
 
         if (command == NULL) continue;
 
-        if (!strcmp(command, "exit"))
+        if (!strcmp(command, "exit") || !strcmp(command, "quit"))
         {
             clean_up_background_processes();  // Check for completed processes
 
@@ -203,7 +244,11 @@ main(int argc, char* argv[])
             break;
         }
         else if (!strcmp(command, "help"))
-            printf("Commands:\n\texit\n\thelp\n\tglobalusage\n\tjobs\n\n");
+        {
+            printf("Commands:\n");
+            // TODO make it with list & loop (:
+            //\texit\n\thelp\n\tglobalusage\n\tjobs\n\n");
+        }
         else if (!strcmp(command, "globalusage"))
             printf("IMCSH Version %s.%s created by %s\n", major, minor, author);
         else if (!strcmp(command, "jobs"))
@@ -235,7 +280,7 @@ main(int argc, char* argv[])
         }
 
         else
-        {  // General command execution, including `exec`
+        {  // General command execution, including `exec` and output redirection
             char* args[64];
             int i = 0;
 
