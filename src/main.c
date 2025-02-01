@@ -20,11 +20,12 @@ BackgroundProcess bg_processes[MAX_BG_PROCESSES];
 int bg_process_count = 0;
 
 char* major = "6";
-char* minor = "0";
+char* minor = "2";
 char* author = "mssevov, bbkanev";
 
-/* char** commands = ["help", "globalusage", "exec", "jobs", "exit/quit"]; */
-/* size_t ui_commands */
+const char* commands[] = {"help", "globalusage", "exec",
+                          "jobs", "exit/quit",   "cd"};
+int n_commands = sizeof(commands) / sizeof(commands[0]);
 
 char*
 get_cwd()
@@ -56,15 +57,17 @@ execute_command(char* command, char** args, bool wait_for_completion,
         return;
     }
     else if (pid == 0)
-    {                 // Child process
-        int fd = -1;  // File descriptor for redirection
+    {  // Child process
+        int fd = -1;
+
+        // Handle Output Redirection (Only in Child Process)
         for (int i = 0; args[i] != NULL; i++)
         {
             if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0)
             {
                 bool append = strcmp(args[i], ">>") == 0;
 
-                // Ensure the filename is specified
+                // Ensure a filename follows the redirection operator
                 if (args[i + 1] == NULL)
                 {
                     fprintf(stderr,
@@ -73,7 +76,7 @@ execute_command(char* command, char** args, bool wait_for_completion,
                     exit(1);
                 }
 
-                // Open the file for redirection
+                // Open file in appropriate mode
                 fd = open(args[i + 1],
                           append ? O_WRONLY | O_CREAT | O_APPEND
                                  : O_WRONLY | O_CREAT | O_TRUNC,
@@ -85,19 +88,24 @@ execute_command(char* command, char** args, bool wait_for_completion,
                 }
 
                 // Redirect stdout to the file
-                dup2(fd, STDOUT_FILENO);
-                close(fd);
+                if (dup2(fd, STDOUT_FILENO) < 0)
+                {
+                    perror("Failed to redirect stdout");
+                    exit(1);
+                }
+                close(fd);  // Close unnecessary file descriptor
 
-                // Remove redirection tokens from arguments
+                // Remove redirection symbols from args[]
                 args[i] = NULL;
                 break;
             }
         }
+
+        // Execute the command
         execvp(command, args);
 
-        // If execvp fails, print an error and exit child process
-        perror("exec failed");
-        perror(full_command);
+        // If execvp fails, print error
+        perror("execvp failed");
         exit(1);
     }
     else
@@ -121,11 +129,40 @@ execute_command(char* command, char** args, bool wait_for_completion,
                        full_command);
             }
             else
+            {
                 printf(
                     "Maximum background processes reached. Cannot start a new "
                     "background process.\n");
+            }
         }
     }
+}
+
+void
+execute_user_command(char* command, char* full_command)
+{
+    char* args[64];
+    int i = 0;
+
+    args[i++] = command;
+    char* token = strtok(NULL, " ");
+    while (token != NULL && i < 63)
+    {
+        args[i++] = token;
+        token = strtok(NULL, " ");
+    }
+    args[i] = NULL;  // Ensure NULL termination
+
+    bool run_in_background = false;
+
+    // Check if the last argument is "&" (background execution)
+    if (i > 1 && strcmp(args[i - 1], "&") == 0)
+    {
+        run_in_background = true;
+        args[i - 1] = NULL;  // Remove "&" from arguments
+    }
+
+    execute_command(command, args, !run_in_background, full_command, false);
 }
 
 void
@@ -149,7 +186,7 @@ clean_up_background_processes()
 }
 
 int
-main(int argc, char* argv[])
+main()
 {
 #ifdef _WIN32
     printf("This shell runs only on linux.\n");
@@ -193,61 +230,64 @@ main(int argc, char* argv[])
         input[strcspn(input, "\n")] = '\0';
         command = strtok(input, " ");
 
-        if (command == NULL) continue;
+        if (command == NULL)
+            continue;
 
-        if (!strcmp(command, "exit") || !strcmp(command, "quit"))
+        else if (!strcmp(command, "exit") || !strcmp(command, "quit"))
         {
-            clean_up_background_processes();  // Check for completed processes
-
+            // Check for running background processes
             if (bg_process_count > 0)
-            {  // If there are active background processes
-                printf("There are %d background processes running.\n",
-                       bg_process_count);
-                char choice;
-                printf("Wait for background processes? (y/n): ");
-                scanf(" %c", &choice);  // Get user input
+            {
+                printf("The following processes are running:\n");
 
-                if (choice == 'y' || choice == 'Y')
+                // List active background processes
+                for (int i = 0; i < bg_process_count; i++)
                 {
-                    // Wait for all background processes to finish
-                    for (int i = 0; i < bg_process_count; i++)
-                    {
-                        int status;
-                        waitpid(bg_processes[i].pid, &status,
-                                0);  // Wait for process to finish
-                        printf(
-                            "Background process with PID %d (%s) finished.\n",
-                            bg_processes[i].pid, bg_processes[i].command);
-                    }
-                    bg_process_count = 0;  // All processes are finished
+                    printf("[%d] PID: %d Command: %s\n", i + 1,
+                           bg_processes[i].pid, bg_processes[i].command);
                 }
-                else if (choice == 'n' || choice == 'N')
+
+                // Prompt the user for confirmation
+                printf("Are you sure you want to quit? [Y/n]: ");
+                char choice;
+                scanf(" %c", &choice);  // Get the user's input
+
+                if (choice == 'Y' || choice == 'y')
                 {
                     // Terminate all background processes
                     for (int i = 0; i < bg_process_count; i++)
                     {
-                        kill(bg_processes[i].pid,
-                             SIGKILL);  // Forcefully terminate process
+                        kill(bg_processes[i].pid, SIGKILL);
                         printf(
                             "Terminated background process with PID %d (%s).\n",
                             bg_processes[i].pid, bg_processes[i].command);
                     }
-                    bg_process_count = 0;  // All processes are terminated
+                    bg_process_count = 0;  // Clear the list
+                    status_code = 0;       // Exit the shell
+                    break;
+                }
+                else if (choice == 'N' || choice == 'n')
+                {
+                    printf("Returning to the shell...\n");
+                    continue;  // Return to the shell without exiting
                 }
                 else
-                    printf(
-                        "Invalid choice. Exiting without terminating "
-                        "background processes.\n");
+                {
+                    printf("Invalid input. Returning to the shell...\n");
+                    continue;  // Invalid input, return to the shell
+                }
             }
-
-            status_code = 0;  // Exit the shell
-            break;
+            else
+            {
+                // No background processes, exit immediately
+                status_code = 0;
+                break;
+            }
         }
         else if (!strcmp(command, "help"))
         {
             printf("Commands:\n");
-            // TODO make it with list & loop (:
-            //\texit\n\thelp\n\tglobalusage\n\tjobs\n\n");
+            for (int i = 0; i < n_commands; i++) printf("%s\n", commands[i]);
         }
         else if (!strcmp(command, "globalusage"))
             printf("IMCSH Version %s.%s created by %s\n", major, minor, author);
@@ -278,35 +318,22 @@ main(int argc, char* argv[])
             // Change directory
             if (chdir(path) != 0) perror("cd");
         }
+        else if (!strcmp(command, "exec"))
+        {
+            char* program = strtok(NULL, " ");
 
-        else
-        {  // General command execution, including `exec` and output redirection
-            char* args[64];
-            int i = 0;
-
-            args[i++] = command;
-            char* token = strtok(NULL, " ");
-            while (token != NULL && i < 63)
+            if (program == NULL)
             {
-                args[i++] = token;
-                token = strtok(NULL, " ");
-            }
-            args[i] = NULL;
-
-            bool run_in_background = false;
-
-            // Check if the last argument is "&"
-            if (i > 1 && strcmp(args[i - 1], "&") == 0)
-            {
-                run_in_background = true;
-                args[i - 1] = NULL;  // Remove "&" from arguments
+                printf("Usage: exec <command> [arguments]\n");
+                continue;
             }
 
-            bool print_pid = strcmp(args[0], "exec") == 0;
-
-            execute_command(command, args, !run_in_background, input,
-                            print_pid);
+            execute_user_command(program, input);
         }
+
+        // General command execution, including `exec` and output redirection
+        else
+            execute_user_command(command, input);
     }
 
     free(input);
